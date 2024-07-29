@@ -12,3 +12,10 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Payment(db.Model):
+    __tablename__ = 'payments'
+    id = db.Column(db.Integer, primary_key=True)
+    inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
+    amount = db.Column(db.Numeric, nullable=False)
+    payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+
