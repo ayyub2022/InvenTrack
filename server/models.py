@@ -13,4 +13,9 @@ class products (db.models,SerializerMixin);
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     category = db.relationship('categories', backref=db.backref('products', lazy=True))
     orders = association_proxy('order_items', 'product')
+    # Add more columns as needed!
+    def __repr__(self):
+        return f'<Product {self.name}>'
+class shop(db.models,SerializerMixin)
+    id = db.column(db.integer,primary_key=True)
 # Models go here!
