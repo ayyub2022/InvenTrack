@@ -20,7 +20,17 @@ class Product(db.Model, SerializerMixin):
     def __repr__(self):
         return f"Product('{self.prod_id}','{self.prod_name}','{self.prod_qty}')"
 
+class item(db model, SerializerMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
 
+    def __repr__(self):
+        return f"Item('{self.name}', {self.quantity} units, ${self.price:.2f})"
+
+class Inventory:
+    
 
 
 # Define your models here!
@@ -37,7 +47,7 @@ class category(db.model,SerializerMixin):
     items = db.relationship('item', backref='category', lazy=True)
     description = db.Column(db.string,primary_key=True)
 
-    
+
 class Supplier(db.Model):
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
