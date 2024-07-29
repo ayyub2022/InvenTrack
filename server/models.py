@@ -10,4 +10,8 @@ class user(db.model,SerializerMixin):
     email = db.Column(db.String(100), nullable=False, unique=True)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.string(100),nullable=False)
-  
+class category(db.model,SerializerMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.string,primary_key=True)
+    items = db.relationship('item', backref='category', lazy=True)
+    description = db.Column(db.string,primary_key=True)
