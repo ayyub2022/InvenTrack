@@ -45,6 +45,16 @@ class Supplier(db.Model):
     contact_info = db.Column(db.Text, nullable=False)
 
 
+class SupplyRequest(db.Model):
+    __tablename__ = 'supply_requests'
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 
 
 class Payment(db.Model):
