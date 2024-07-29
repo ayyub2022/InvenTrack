@@ -22,4 +22,6 @@ class shop(db.models,SerializerMixin)
 
 
 class merchants(db.models,SerializerMixin)
-    #Models go here 
+    #Models go here
+
+class user(db.models)
