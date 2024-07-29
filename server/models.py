@@ -19,3 +19,7 @@ class products (db.models,SerializerMixin);
 class shop(db.models,SerializerMixin)
     id = db.column(db.integer,primary_key=True)
 # Models go here!
+
+
+class merchants(db.models,SerializerMixin)
+    #Models go here 
