@@ -1,35 +1,42 @@
 import datetime
-#Define your models here
 from sqlalchemy_serializer import SerializerMixin
-from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime
-from sqlalchemy_serializer import SerializerMixin
+
 from config import db
 
-# Define your models here
-
 class Transaction(db.Model, SerializerMixin):
-
     __tablename__ = 'transactions'
     id = db.Column(db.Integer, primary_key=True)
-    inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
+    inventory_id = db.Column(db.Integer, db.ForeignKey("inventory.id"), nullable=False)
     transaction_type = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Product(db.Model):
+
+class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    bp = db.Column(db.Float, nullable=False)
+    sp = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    category = db.relationship("Category", backref=db.backref("products", lazy=True))
+
+
+class Inventory(db.Model, SerializerMixin):
+    __tablename__ = 'inventory'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     spoilt_quantity = db.Column(db.Integer, nullable=False, default=0)
     payment_status = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-
     product = db.relationship('Product', backref=db.backref('inventories', lazy=True))
 
+
 class User(db.Model, SerializerMixin):
+    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
@@ -38,11 +45,11 @@ class User(db.Model, SerializerMixin):
 
 
 class Category(db.Model, SerializerMixin):
-
+    __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False, unique=True)
-    description = db.Column(db.String, nullable=False)
-    products = db.relationship('Product', backref='category', lazy=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(255), nullable=True)
+
 
 class Supplier(db.Model, SerializerMixin):
     __tablename__ = 'suppliers'
@@ -50,39 +57,49 @@ class Supplier(db.Model, SerializerMixin):
     name = db.Column(db.String(100), nullable=False)
     contact_info = db.Column(db.Text, nullable=False)
 
-class SupplyRequest(db.Model, SerializerMixin):
 
+class SupplyRequest(db.Model, SerializerMixin):
     __tablename__ = 'supply_requests'
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    clerk_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
 class Payment(db.Model, SerializerMixin):
-    __tablename__ = 'payments'
+    __tablename__ = "payments"
     id = db.Column(db.Integer, primary_key=True)
-    inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
+    inventory_id = db.Column(db.Integer, db.ForeignKey("inventory.id"), nullable=False)
     amount = db.Column(db.Numeric, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
 
-class SupplierProduct(db.Model):
-    __tablename__ = 'supplier_products'
-    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    supplier = db.relationship('Supplier', backref=db.backref('supplier_products', cascade='all, delete-orphan'))
-    product = db.relationship('Product', backref=db.backref('supplier_products', cascade='all, delete-orphan'))
+class SupplierProduct(db.Model):
+    __tablename__ = "supplier_products"
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    supplier = db.relationship(
+        "Supplier",
+        backref=db.backref("supplier_products", cascade="all, delete-orphan"),
+    )
+    product = db.relationship(
+        "Product", backref=db.backref("supplier_products", cascade="all, delete-orphan")
+    )
+
 
 class ProductCategory(db.Model):
-    __tablename__ = 'product_categories'
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), primary_key=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), primary_key=True)
+    __tablename__ = "product_categories"
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), primary_key=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    product = db.relationship('Product', backref=db.backref('product_categories', cascade='all, delete-orphan'))
-    category = db.relationship('Category', backref=db.backref('product_categories', cascade='all, delete-orphan'))
-
-
+    product = db.relationship(
+        "Product",
+        backref=db.backref("product_categories", cascade="all, delete-orphan"),
+    )
+    category = db.relationship(
+        "Category",
+        backref=db.backref("product_categories", cascade="all, delete-orphan"),
+    )
