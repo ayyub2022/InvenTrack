@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 # Standard library imports
@@ -45,3 +46,4 @@ def init_db():
 if __name__ == "__main__":
     init_db()
     print("Database seeded successfully!")
+
