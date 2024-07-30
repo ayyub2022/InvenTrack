@@ -1,17 +1,21 @@
 import datetime
+#Define your models here
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime
 
 from config import db
 
+
 class Transaction(db.Model, SerializerMixin):
+
     __tablename__ = 'transactions'
     id = db.Column(db.Integer, primary_key=True)
     inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
     transaction_type = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
@@ -28,6 +32,7 @@ class Inventory(db.Model, SerializerMixin):
     payment_status = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+
     product = db.relationship('Product', backref=db.backref('inventories', lazy=True))
 
 class User(db.Model, SerializerMixin):
@@ -37,7 +42,9 @@ class User(db.Model, SerializerMixin):
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(100), nullable=False)
 
+
 class Category(db.Model, SerializerMixin):
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False, unique=True)
     description = db.Column(db.String, nullable=False)
@@ -50,6 +57,7 @@ class Supplier(db.Model, SerializerMixin):
     contact_info = db.Column(db.Text, nullable=False)
 
 class SupplyRequest(db.Model, SerializerMixin):
+
     __tablename__ = 'supply_requests'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
@@ -64,3 +72,24 @@ class Payment(db.Model, SerializerMixin):
     inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
     amount = db.Column(db.Numeric, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class SupplierProduct(db.Model):
+    __tablename__ = 'supplier_products'
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    supplier = db.relationship('Supplier', backref=db.backref('supplier_products', cascade='all, delete-orphan'))
+    product = db.relationship('Product', backref=db.backref('supplier_products', cascade='all, delete-orphan'))
+
+class ProductCategory(db.Model):
+    __tablename__ = 'product_categories'
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    product = db.relationship('Product', backref=db.backref('product_categories', cascade='all, delete-orphan'))
+    category = db.relationship('Category', backref=db.backref('product_categories', cascade='all, delete-orphan'))
+
+
