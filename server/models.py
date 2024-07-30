@@ -1,3 +1,4 @@
+import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.ext.associationproxy import association_proxy
 
@@ -22,7 +23,13 @@ class item(db.model, SerializerMixin):
     def __repr__(self):
         return f"Item('{self.name}', {self.quantity} units, ${self.price:.2f})"
 
-class inventory(db model):
+class inventory(db.model):
+  __tablename__ = 'inventory'
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String(50), nullable=False)
+  price = db.Column(db.Float, nullable=False)
+  quantity = db.Column(db.Integer, nullable=False)
+  created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class user(db.model,SerializerMixin):
