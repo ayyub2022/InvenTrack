@@ -14,14 +14,14 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class item(db.model, SerializerMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
+class Product(db.model):
+    __tablename__ = 'products'
 
-    def __repr__(self):
-        return f"Item('{self.name}', {self.quantity} units, ${self.price:.2f})"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20), unique=True, nullable=False)
+    bp = db.Column(db.Float, nullable=False)  # Buying price
+    sp = db.Column(db.Float, nullable=False)  # Selling price
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 class inventory(db.model):
   __tablename__ = 'inventory'
