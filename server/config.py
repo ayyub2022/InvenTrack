@@ -11,16 +11,13 @@ metadata = MetaData(naming_convention={
 })
 db = SQLAlchemy(metadata=metadata)
 
-def create_app():
-    app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.json.compact = False
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.json.compact = False
+# Initialize extensions
+db.init_app(app)
+Migrate(app, db)
+api =Api(app)
+CORS(app)
 
-    # Initialize extensions
-    db.init_app(app)
-    Migrate(app, db)
-    Api(app)
-    CORS(app)
-
-    return app
