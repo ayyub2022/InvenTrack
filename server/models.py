@@ -14,7 +14,7 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class Product(db.model):
+class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
 
     id = db.Column(db.Integer, primary_key=True)
