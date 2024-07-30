@@ -3,9 +3,10 @@ import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime
-
+from sqlalchemy_serializer import SerializerMixin
 from config import db
 
+# Define your models here
 
 class Transaction(db.Model, SerializerMixin):
 
@@ -16,15 +17,8 @@ class Transaction(db.Model, SerializerMixin):
     quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-class Product(db.Model, SerializerMixin):
+class Product(db.Model):
     __tablename__ = 'products'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
-
-class Inventory(db.Model, SerializerMixin):
-    __tablename__ = 'inventory'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
@@ -72,7 +66,6 @@ class Payment(db.Model, SerializerMixin):
     inventory_id = db.Column(db.Integer, db.ForeignKey('inventory.id'), nullable=False)
     amount = db.Column(db.Numeric, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 class SupplierProduct(db.Model):
     __tablename__ = 'supplier_products'
