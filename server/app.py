@@ -165,4 +165,16 @@ def make_payment():
         data = request.get_json()
         inventory_id = data.get('inventory_id')
         amount = data.get('amount')
-        payment_date = data.get('payment_date')           
+        payment_date = data.get('payment_date')
+
+        if inventory_id is not None and amount is not None and payment_date is not None:
+            payment = Payment(
+                inventory_id=inventory_id,
+                amount=amount,
+                payment_date=payment_date
+            )
+            db.session.add(payment)
+            db.session.commit()
+            return jsonify({'message': 'Payment made successfully'}), 201
+        else:
+            return jsonify({'error': 'Invalid data'}), 400           
