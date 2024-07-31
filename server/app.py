@@ -155,3 +155,14 @@ def product_detail(product_id):
             product.bp = bp
         if sp is not None:
             product.sp = sp
+
+@app.route('./payment',method=['Get','Post'])
+def make_payment():
+    if request.method == 'GET':
+        payments = Payment.query.all()
+        return jsonify([payment.to_dict() for payment in payments])
+    elif request.method == 'POST':
+        data = request.get_json()
+        inventory_id = data.get('inventory_id')
+        amount = data.get('amount')
+        payment_date = data.get('payment_date')           
