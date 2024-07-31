@@ -177,4 +177,16 @@ def make_payment():
             db.session.commit()
             return jsonify({'message': 'Payment made successfully'}), 201
         else:
-            return jsonify({'error': 'Invalid data'}), 400           
+            return jsonify({'error': 'Invalid data'}), 400 
+
+@app.route('/products', methods=['GET'])
+def get_products():
+    products = Product.query.all()
+    products_data = [product.to_dict() for product in products]
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    categories_data = [category.to_dict() for category in categories]
+    return make_response(jsonify(categories_data), 200)                  
