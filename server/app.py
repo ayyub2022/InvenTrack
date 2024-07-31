@@ -172,4 +172,9 @@ def make_payment():
                 inventory_id=inventory_id,
                 amount=amount,
                 payment_date=payment_date
-            )         
+            )
+            db.session.add(payment)
+            db.session.commit()
+            return jsonify({'message': 'Payment made successfully'}), 201
+        else:
+            return jsonify({'error': 'Invalid data'}), 400           
