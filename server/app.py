@@ -201,4 +201,10 @@ def get_suppliers():
 def get_products_by_category(category_id):
     products = Product.query.filter_by(category_id=category_id).all()
     products_data = [product.to_dict() for product in products]
-    return make_response(jsonify(products_data), 200)                  
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/supplyrequests', methods=['GET'])
+def get_supply_requests():
+    supply_requests = SupplyRequest.query.all()
+    supply_requests_data = [request.to_dict() for request in supply_requests]
+    return make_response(jsonify(supply_requests_data), 200)                  
