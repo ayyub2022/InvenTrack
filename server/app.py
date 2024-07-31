@@ -177,4 +177,34 @@ def make_payment():
             db.session.commit()
             return jsonify({'message': 'Payment made successfully'}), 201
         else:
-            return jsonify({'error': 'Invalid data'}), 400           
+            return jsonify({'error': 'Invalid data'}), 400 
+        
+@app.route('/products', methods=['GET'])
+def get_products():
+    products = Product.query.all()
+    products_data = [product.to_dict() for product in products]
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    categories_data = [category.to_dict() for category in categories]
+    return make_response(jsonify(categories_data), 200)
+
+@app.route('/suppliers', methods=['GET'])
+def get_suppliers():
+    suppliers = Supplier.query.all()
+    suppliers_data = [supplier.to_dict() for supplier in suppliers]
+    return make_response(jsonify(suppliers_data), 200)
+
+@app.route('/categories/<int:category_id>/products', methods=['GET'])
+def get_products_by_category(category_id):
+    products = Product.query.filter_by(category_id=category_id).all()
+    products_data = [product.to_dict() for product in products]
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/supplyrequests', methods=['GET'])
+def get_supply_requests():
+    supply_requests = SupplyRequest.query.all()
+    supply_requests_data = [request.to_dict() for request in supply_requests]
+    return make_response(jsonify(supply_requests_data), 200)                  
