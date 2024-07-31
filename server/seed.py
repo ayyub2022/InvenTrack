@@ -1,45 +1,101 @@
-# Update seed.py
-
 from datetime import datetime
-from random import randint, choice as rc
+from faker import Faker
+from werkzeug.security import generate_password_hash
 from app import app
-from models import Product, db, Inventory, Category
+from models import Product, db, Inventory, Category, Payment, Supplier, SupplyRequest, User
+
+fake = Faker()
 
 def init_db():
-    db.drop_all()  # WARNING: This will drop all tables. Use with caution!
+    db.drop_all()
     db.create_all()
 
     # Create some categories
-    category1 = Category(name="Category 1", description="Description for Category 1")
-    category2 = Category(name="Category 2", description="Description for Category 2")
-    category3 = Category(name="Category 3", description="Description for Category 3")
-
-    # Add categories to the session
-    db.session.add(category1)
-    db.session.add(category2)
-    db.session.add(category3)
+    categories = []
+    for _ in range(10):
+        category = Category(name=fake.word(), description=fake.text())
+        categories.append(category)
+    db.session.add_all(categories)
     db.session.commit()
 
-    # Create some products with category_ids
-    product1 = Product(name="Product 1", category_id=category1.id, bp=10.0, sp=15.0, created_at=datetime.utcnow())
-    product2 = Product(name="Product 2", category_id=category2.id, bp=20.0, sp=25.0, created_at=datetime.utcnow())
-    product3 = Product(name="Product 3", category_id=category3.id, bp=30.0, sp=35.0, created_at=datetime.utcnow())
-
-    # Add products to the session
-    db.session.add(product1)
-    db.session.add(product2)
-    db.session.add(product3)
+    # Create some products
+    products = []
+    for _ in range(100):
+        product = Product(
+            name=fake.word(),
+            category_id=fake.random_element(categories).id,
+            bp=fake.random_number(digits=2),
+            sp=fake.random_number(digits=2),
+            created_at=datetime.utcnow()
+        )
+        products.append(product)
+    db.session.add_all(products)
     db.session.commit()
 
     # Create some inventory records
-    inventory1 = Inventory(product_id=product1.id, quantity=100, spoilt_quantity=5, payment_status="paid", created_at=datetime.utcnow())
-    inventory2 = Inventory(product_id=product2.id, quantity=200, spoilt_quantity=10, payment_status="unpaid", created_at=datetime.utcnow())
-    inventory3 = Inventory(product_id=product3.id, quantity=150, spoilt_quantity=7, payment_status="paid", created_at=datetime.utcnow())
+    inventories = []
+    for product in products:
+        inventory = Inventory(
+            product_id=product.id,
+            quantity=fake.random_number(digits=3),
+            spoilt_quantity=fake.random_number(digits=1),
+            payment_status=fake.random_element(["Paid", "Unpaid"]),
+            created_at=datetime.utcnow()
+        )
+        inventories.append(inventory)
+    db.session.add_all(inventories)
+    db.session.commit()
 
-    # Add inventory records to the session
-    db.session.add(inventory1)
-    db.session.add(inventory2)
-    db.session.add(inventory3)
+    # Create some users
+    users = []
+    for _ in range(50):
+        user = User(
+            name=fake.name(),
+            email=fake.email(),
+            password=generate_password_hash(fake.password(length=fake.random_int(min=8, max=16))),
+            role=fake.random_element(elements=("Admin", "User"))
+        )
+        users.append(user)
+    
+    db.session.add_all(users)
+    db.session.commit()
+    print("Users seeding complete.")
+
+    # Create some suppliers
+    suppliers = []
+    for _ in range(25):
+        supplier = Supplier(
+            name=fake.company(),
+            contact_info=fake.phone_number()
+        )
+        suppliers.append(supplier)
+    db.session.add_all(suppliers)
+    db.session.commit()
+
+    # Create some supply requests
+    supply_requests = []
+    for _ in range(10):
+        supply_request = SupplyRequest(
+            product_id=fake.random_element(products).id,
+            quantity=fake.random_number(digits=2),
+            clerk_id=fake.random_element(users).id,
+            status=fake.random_element(["Pending", "Approved", "Rejected"]),
+            created_at=datetime.utcnow()
+        )
+        supply_requests.append(supply_request)
+    db.session.add_all(supply_requests)
+    db.session.commit()
+
+    # Create some payments
+    payments = []
+    for inventory in inventories:
+        payment = Payment(
+            inventory_id=inventory.id,
+            amount=fake.random_number(digits=4),
+            payment_date=datetime.utcnow()
+        )
+        payments.append(payment)
+    db.session.add_all(payments)
     db.session.commit()
 
 if __name__ == "__main__":
