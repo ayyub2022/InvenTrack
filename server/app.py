@@ -5,17 +5,120 @@
 # Remote library imports
 from flask import request
 from flask_restful import Resource
-
-# Local imports
+from models import Product,Category,User
+# Local imports  SQLAlchemyError
 from config import app, db, api
-# Add your model imports
-
-
+from sqlalchemy.exc import IntegrityError,SQLAlchemyError
+from flask import request, jsonify, session,make_response
+from werkzeug.security import generate_password_hash, check_password_hash
 # Views go here!
 
 @app.route('/')
 def index():
     return '<h1>Project Server</h1>'
+
+@app.route('/signup', methods=['POST'])
+def sign_up():
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        return jsonify({"error": "All fields are required"}), 422
+
+    new_user = User(
+        name=name,
+        email=email,
+        password=generate_password_hash(password),
+        role="User"  # Default role
+    )
+
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({"message": "User created successfully"}), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Email already exists"}), 422
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Failed to create user", "details": str(e)}), 500
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'success': False, 'message': 'Email and password are required'}), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user or not check_password_hash(user.password, password):
+        return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
+
+    session['user_id'] = user.id
+    return jsonify({'success': True, 'message': 'Login successful'})
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({"message": "Logged out successfully"}), 200
+
+@app.route('/checksession', methods=['GET'])
+def check_session():
+    user_id = session.get('user_id')
+    if user_id:
+        user = User.query.filter(User.id == user_id).first()
+        if user:
+            return jsonify(user.to_dict()), 200
+        else:
+            return jsonify({"error": "User not found"}), 404
+    else:
+        return jsonify({"error": "Unauthorized"}), 401
+
+@app.route("/users", methods=["GET"])
+def get_users():
+    users = User.query.all()
+    return jsonify([user.to_dict() for user in users])
+
+@app.route("/users/<int:user_id>", methods=["GET", "PATCH"])
+def get_user(user_id):
+    if request.method == "GET":
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        return jsonify(user.to_dict())
+    elif request.method == "PATCH":
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        data = request.get_json()
+        role = data.get('role')
+
+        if role is not None:
+            user.role = role
+            try:
+                db.session.commit()
+                return jsonify(user.to_dict()), 200
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                return jsonify({'error': str(e)}), 500
+
+        return jsonify({"error": "Invalid data"}), 404
+
+@app.route('/user', methods=['GET'])
+def user_details():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    user = User.query.get(user_id)
+    return make_response(jsonify(user.to_dict()), 200)
+
 
 
 if __name__ == '__main__':
