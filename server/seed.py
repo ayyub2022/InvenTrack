@@ -25,8 +25,7 @@ def init_db():
             name=fake.word(),
             category_id=fake.random_element(categories).id,
             bp=fake.random_number(digits=2),
-            sp=fake.random_number(digits=2),
-            created_at=datetime.utcnow()
+            sp=fake.random_number(digits=2)
         )
         products.append(product)
     db.session.add_all(products)
