@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy_serializer import SerializerMixin
 from datetime import datetime
-
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, create_engine
 from config import db
 
 class Transaction(db.Model, SerializerMixin):
@@ -20,8 +20,9 @@ class Product(db.Model, SerializerMixin):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     bp = db.Column(db.Float, nullable=False)
     sp = db.Column(db.Float, nullable=False)
-    category = db.relationship('Category', backref='products')
-
+    category = db.relationship('Category', back_populates='products')
+    inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
+    serialize_rules = ('-inventory_items.product',)
     def to_dict(self):
         return {
             'id': self.id,
@@ -39,7 +40,7 @@ class Inventory(db.Model, SerializerMixin):
     spoilt_quantity = db.Column(db.Integer, nullable=False, default=0)
     payment_status = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    product = db.relationship('Product', backref=db.backref('inventories', lazy=True))
+    product = db.relationship('Product',back_populates='inventory_items', lazy=True)
 
 
 class User(db.Model, SerializerMixin):
@@ -55,7 +56,9 @@ class Category(db.Model, SerializerMixin):
     __tablename__ = "categories"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.String(255), nullable=True)
+    products = db.relationship('Product', back_populates='category')
+    serialize_rules = ('-products.category',)
+
 
 
 class Supplier(db.Model, SerializerMixin):
