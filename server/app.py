@@ -124,3 +124,87 @@ def user_details():
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
 
+@app.route('/product',method=['Get'])
+def get_product():
+    products = Product.query.all()
+    return jsonify([product.to_dict() for product in products])
+
+@app.route('/product/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
+def product_detail(product_id):
+    if request.method == 'GET':
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+        return jsonify(product.to_dict())
+    elif request.method == 'PUT':
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        data = request.get_json()
+        name = data.get('name')
+        category_id = data.get('category_id')
+        bp = data.get('bp')
+        sp = data.get('sp')
+
+        if name is not None:
+            product.name = name
+        if category_id is not None:
+            product.category_id = category_id
+        if bp is not None:
+            product.bp = bp
+        if sp is not None:
+            product.sp = sp
+
+@app.route('./payment',method=['Get','Post'])
+def make_payment():
+    if request.method == 'GET':
+        payments = Payment.query.all()
+        return jsonify([payment.to_dict() for payment in payments])
+    elif request.method == 'POST':
+        data = request.get_json()
+        inventory_id = data.get('inventory_id')
+        amount = data.get('amount')
+        payment_date = data.get('payment_date')
+
+        if inventory_id is not None and amount is not None and payment_date is not None:
+            payment = Payment(
+                inventory_id=inventory_id,
+                amount=amount,
+                payment_date=payment_date
+            )
+            db.session.add(payment)
+            db.session.commit()
+            return jsonify({'message': 'Payment made successfully'}), 201
+        else:
+            return jsonify({'error': 'Invalid data'}), 400 
+        
+@app.route('/products', methods=['GET'])
+def get_products():
+    products = Product.query.all()
+    products_data = [product.to_dict() for product in products]
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    categories_data = [category.to_dict() for category in categories]
+    return make_response(jsonify(categories_data), 200)
+
+@app.route('/suppliers', methods=['GET'])
+def get_suppliers():
+    suppliers = Supplier.query.all()
+    suppliers_data = [supplier.to_dict() for supplier in suppliers]
+    return make_response(jsonify(suppliers_data), 200)
+
+@app.route('/categories/<int:category_id>/products', methods=['GET'])
+def get_products_by_category(category_id):
+    products = Product.query.filter_by(category_id=category_id).all()
+    products_data = [product.to_dict() for product in products]
+    return make_response(jsonify(products_data), 200)
+
+@app.route('/supplyrequests', methods=['GET'])
+def get_supply_requests():
+    supply_requests = SupplyRequest.query.all()
+    supply_requests_data = [request.to_dict() for request in supply_requests]
+    return make_response(jsonify(supply_requests_data), 200)                  
