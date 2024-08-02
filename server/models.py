@@ -58,6 +58,7 @@ class Category(db.Model, SerializerMixin):
     name = db.Column(db.String(100), nullable=False, unique=True)
     products = db.relationship('Product', back_populates='category')
     serialize_rules = ('-products.category',)
+    description = db.Column(db.String(200), nullable=True)
 
 
 
