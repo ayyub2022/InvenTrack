@@ -16,13 +16,20 @@ class Transaction(db.Model, SerializerMixin):
 class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     bp = db.Column(db.Float, nullable=False)
     sp = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    category = db.relationship("Category", backref=db.backref("products", lazy=True))
+    category = db.relationship('Category', backref='products')
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'category_id': self.category_id,
+            'bp': self.bp,
+            'sp': self.sp
+        }
 
 class Inventory(db.Model, SerializerMixin):
     __tablename__ = 'inventory'
