@@ -3,15 +3,18 @@ from sqlalchemy_serializer import SerializerMixin
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, create_engine
 from config import db
+from flask_login import UserMixin
 
 class Transaction(db.Model, SerializerMixin):
     __tablename__ = 'transactions'
     id = db.Column(db.Integer, primary_key=True)
-    inventory_id = db.Column(db.Integer, db.ForeignKey("inventory.id"), nullable=False)
-    transaction_type = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, ForeignKey('users.id'), nullable=False)  
+    inventory_id = db.Column(db.Integer, ForeignKey("inventory.id"), nullable=False)
+    transaction_type = db.Column(String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    
+    user = db.relationship('User', back_populates='transactions')
 
 class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
@@ -42,15 +45,24 @@ class Inventory(db.Model, SerializerMixin):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     product = db.relationship('Product',back_populates='inventory_items', lazy=True)
 
-
-class User(db.Model, SerializerMixin):
+class User(db.Model, UserMixin, SerializerMixin):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    transactions = db.relationship('Transaction', back_populates='user')
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': self.role,
+            'created_at': self.created_at
+        }
 
 class Category(db.Model, SerializerMixin):
     __tablename__ = "categories"
@@ -85,6 +97,13 @@ class Payment(db.Model, SerializerMixin):
     inventory_id = db.Column(db.Integer, db.ForeignKey("inventory.id"), nullable=False)
     amount = db.Column(db.Numeric, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'inventory_id': self.inventory_id,
+            'amount': self.amount,
+            'payment_date': self.payment_date.strftime('%Y-%m-%d') 
+        }
 
 
 class SupplierProduct(db.Model):
