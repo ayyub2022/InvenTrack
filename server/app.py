@@ -273,6 +273,49 @@ def get_products_by_category(category_id):
 def get_suppliers():
     suppliers = Supplier.query.all()
     return jsonify([supplier.to_dict() for supplier in suppliers])
+@app.route('/SupplierProduct', methods=['GET', 'POST'])
+def get_supplier_products():
+    if request.method == 'GET':
+        
+        supplier_products = SupplierProduct.query.all()
+        return jsonify([sp.to_dict() for sp in supplier_products])
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        supplier_id = data.get('supplier_id')
+        product_id = data.get('product_id')
+        quantity = data.get('quantity')
+        price = data.get('price')
+
+        if supplier_id is None:
+            return jsonify({'error': 'Missing supplier_id'}), 400
+        if product_id is None:
+            return jsonify({'error': 'Missing product_id'}), 400
+        if quantity is None:
+            return jsonify({'error': 'Missing quantity'}), 400
+        if price is None:
+            return jsonify({'error': 'Missing price'}), 400
+
+        try:
+            quantity = int(quantity)
+            price = float(price)
+        except ValueError:
+            return jsonify({'error': 'Invalid quantity or price format'}), 400
+
+        supplier_product = SupplierProduct(
+            supplier_id=supplier_id,
+            product_id=product_id,
+            quantity=quantity,
+            price=price
+        )
+        
+        try:
+            db.session.add(supplier_product)
+            db.session.commit()
+            return jsonify({'message': 'Supplier product added successfully'}), 201
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
 @app.route('/supplyrequests', methods=['GET'])
 def get_supply_requests():
