@@ -107,18 +107,20 @@ class Payment(db.Model, SerializerMixin):
 
 
 class SupplierProduct(db.Model):
-    __tablename__ = "supplier_products"
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    supplier = db.relationship(
-        "Supplier",
-        backref=db.backref("supplier_products", cascade="all, delete-orphan"),
-    )
-    product = db.relationship(
-        "Product", backref=db.backref("supplier_products", cascade="all, delete-orphan")
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'supplier_id': self.supplier_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'price': self.price
+        }
 
 class ProductCategory(db.Model):
     __tablename__ = "product_categories"
