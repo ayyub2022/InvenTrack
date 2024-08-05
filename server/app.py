@@ -1,21 +1,14 @@
-#!/usr/bin/env python3
-
-# Standard library imports
-
-# Remote library imports
-from flask import request
-from flask_restful import Resource
-from models import Product,Category,User
-# Local imports  SQLAlchemyError
-from config import app, db, api
-from sqlalchemy.exc import IntegrityError,SQLAlchemyError
-from flask import request, jsonify, session,make_response
+from flask import Flask, request, jsonify, session, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
-# Views go here!
+from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from config import app, db, api, login_manager
+from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction
+from datetime import datetime
 
 @app.route('/')
 def index():
-    return '<h1>Project Server</h1>'
+    return '<h1>WELCOME !!</h1>'
 
 @app.route('/signup', methods=['POST'])
 def sign_up():
@@ -23,21 +16,26 @@ def sign_up():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
+    role = data.get('role', 'User')
 
     if not name or not email or not password:
         return jsonify({"error": "All fields are required"}), 422
+
+    if role not in ['Admin', 'User']:
+        return jsonify({"error": "Invalid role"}), 422
 
     new_user = User(
         name=name,
         email=email,
         password=generate_password_hash(password),
-        role="User"  # Default role
+        role=role
     )
 
     try:
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"message": "User created successfully"}), 201
+        message = "Admin created successfully" if role == 'Admin' else "User created successfully"
+        return jsonify({"message": message}), 201
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Email already exists"}), 422
@@ -47,7 +45,7 @@ def sign_up():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.get_json()
     email = data.get('email')
     password = data.get('password')
 
@@ -59,19 +57,20 @@ def login():
     if not user or not check_password_hash(user.password, password):
         return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
 
-    session['user_id'] = user.id
+    login_user(user)
     return jsonify({'success': True, 'message': 'Login successful'})
 
 @app.route('/logout', methods=['POST'])
+@login_required
 def logout():
-    session.clear()
+    logout_user()
     return jsonify({"message": "Logged out successfully"}), 200
 
 @app.route('/checksession', methods=['GET'])
 def check_session():
     user_id = session.get('user_id')
     if user_id:
-        user = User.query.filter(User.id == user_id).first()
+        user = User.query.filter_by(id=user_id).first()
         if user:
             return jsonify(user.to_dict()), 200
         else:
@@ -79,23 +78,21 @@ def check_session():
     else:
         return jsonify({"error": "Unauthorized"}), 401
 
-@app.route("/users", methods=["GET"])
+@app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
     return jsonify([user.to_dict() for user in users])
 
-@app.route("/users/<int:user_id>", methods=["GET", "PATCH"])
-def get_user(user_id):
-    if request.method == "GET":
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-        return jsonify(user.to_dict())
-    elif request.method == "PATCH":
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({"error": "User not found"}), 404
+@app.route('/users/<int:user_id>', methods=['GET', 'PATCH'])
+def manage_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
 
+    if request.method == 'GET':
+        return jsonify(user.to_dict())
+
+    elif request.method == 'PATCH':
         data = request.get_json()
         role = data.get('role')
 
@@ -108,39 +105,55 @@ def get_user(user_id):
                 db.session.rollback()
                 return jsonify({'error': str(e)}), 500
 
-        return jsonify({"error": "Invalid data"}), 404
+        return jsonify({"error": "Invalid data"}), 400
 
 @app.route('/user', methods=['GET'])
+@login_required
 def user_details():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'Unauthorized'}), 401
-
+    user_id = current_user.id
     user = User.query.get(user_id)
     return make_response(jsonify(user.to_dict()), 200)
 
+@app.route('/profile', methods=['GET'])
+@login_required
+def profile():
+    user = current_user
+    transactions = Transaction.query.filter_by(user_id=user.id).all()
+    transaction_history = [transaction.to_dict() for transaction in transactions]
+    activities = get_user_activities(user.id)
 
+    user_profile = {
+        'name': user.name,
+        'email': user.email,
+        'created_at': user.created_at,
+        'transaction_history': transaction_history,
+        'activities': activities
+    }
 
-if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    return jsonify(user_profile), 200
 
-@app.route('/product',method=['Get'])
-def get_product():
+def get_user_activities(user_id):
+    activities = [
+        {'activity': 'Logged in', 'timestamp': datetime.utcnow()},
+        {'activity': 'Made a purchase', 'timestamp': datetime.utcnow()},
+    ]
+    return activities
+
+@app.route('/products', methods=['GET'])
+def get_products():
     products = Product.query.all()
     return jsonify([product.to_dict() for product in products])
 
 @app.route('/product/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
 def product_detail(product_id):
-    if request.method == 'GET':
-        product = Product.query.get(product_id)
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
-        return jsonify(product.to_dict())
-    elif request.method == 'PUT':
-        product = Product.query.get(product_id)
-        if not product:
-            return jsonify({'error': 'Product not found'}), 404
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
 
+    if request.method == 'GET':
+        return jsonify(product.to_dict())
+
+    elif request.method == 'PUT':
         data = request.get_json()
         name = data.get('name')
         category_id = data.get('category_id')
@@ -156,55 +169,158 @@ def product_detail(product_id):
         if sp is not None:
             product.sp = sp
 
-@app.route('./payment',method=['Get','Post'])
-def make_payment():
+        try:
+            db.session.commit()
+            return jsonify(product.to_dict()), 200
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(product)
+            db.session.commit()
+            return jsonify({'message': 'Product deleted successfully'}), 200
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/create_product', methods=['POST'])
+def create_product():
+    data = request.get_json()
+    name = data.get('name')
+    category_id = data.get('category_id')
+    bp = data.get('bp')
+    sp = data.get('sp')
+
+    if not all([name, category_id, bp, sp]):
+        return jsonify({'error': 'Missing data'}), 400
+
+    category = Category.query.get(category_id)
+    if not category:
+        return jsonify({'error': 'Category not found'}), 404
+
+    new_product = Product(
+        name=name,
+        category_id=category_id,
+        bp=bp,
+        sp=sp
+    )
+
+    try:
+        db.session.add(new_product)
+        db.session.commit()
+        return jsonify(new_product.to_dict()), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/payment', methods=['GET', 'POST'])
+def manage_payment():
     if request.method == 'GET':
         payments = Payment.query.all()
         return jsonify([payment.to_dict() for payment in payments])
+
     elif request.method == 'POST':
         data = request.get_json()
         inventory_id = data.get('inventory_id')
         amount = data.get('amount')
-        payment_date = data.get('payment_date')
+        payment_date_str = data.get('payment_date')
 
-        if inventory_id is not None and amount is not None and payment_date is not None:
-            payment = Payment(
-                inventory_id=inventory_id,
-                amount=amount,
-                payment_date=payment_date
-            )
+        if inventory_id is None:
+            return jsonify({'error': 'Missing inventory_id'}), 400
+        if amount is None:
+            return jsonify({'error': 'Missing amount'}), 400
+        if payment_date_str is None:
+            return jsonify({'error': 'Missing payment_date'}), 400
+
+        try:
+           
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid payment_date format'}), 400
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            return jsonify({'error': 'Invalid amount format'}), 400
+        
+        payment = Payment(
+            inventory_id=inventory_id,
+            amount=amount,
+            payment_date=payment_date
+        )
+        try:
             db.session.add(payment)
             db.session.commit()
             return jsonify({'message': 'Payment made successfully'}), 201
-        else:
-            return jsonify({'error': 'Invalid data'}), 400 
-        
-@app.route('/products', methods=['GET'])
-def get_products():
-    products = Product.query.all()
-    products_data = [product.to_dict() for product in products]
-    return make_response(jsonify(products_data), 200)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
 @app.route('/categories', methods=['GET'])
 def get_categories():
     categories = Category.query.all()
-    categories_data = [category.to_dict() for category in categories]
-    return make_response(jsonify(categories_data), 200)
-
-@app.route('/suppliers', methods=['GET'])
-def get_suppliers():
-    suppliers = Supplier.query.all()
-    suppliers_data = [supplier.to_dict() for supplier in suppliers]
-    return make_response(jsonify(suppliers_data), 200)
+    return jsonify([category.to_dict() for category in categories])
 
 @app.route('/categories/<int:category_id>/products', methods=['GET'])
 def get_products_by_category(category_id):
     products = Product.query.filter_by(category_id=category_id).all()
-    products_data = [product.to_dict() for product in products]
-    return make_response(jsonify(products_data), 200)
+    return jsonify([product.to_dict() for product in products])
+
+@app.route('/suppliers', methods=['GET'])
+def get_suppliers():
+    suppliers = Supplier.query.all()
+    return jsonify([supplier.to_dict() for supplier in suppliers])
+@app.route('/SupplierProduct', methods=['GET', 'POST'])
+def get_supplier_products():
+    if request.method == 'GET':
+        
+        supplier_products = SupplierProduct.query.all()
+        return jsonify([sp.to_dict() for sp in supplier_products])
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        supplier_id = data.get('supplier_id')
+        product_id = data.get('product_id')
+        quantity = data.get('quantity')
+        price = data.get('price')
+
+        if supplier_id is None:
+            return jsonify({'error': 'Missing supplier_id'}), 400
+        if product_id is None:
+            return jsonify({'error': 'Missing product_id'}), 400
+        if quantity is None:
+            return jsonify({'error': 'Missing quantity'}), 400
+        if price is None:
+            return jsonify({'error': 'Missing price'}), 400
+
+        try:
+            quantity = int(quantity)
+            price = float(price)
+        except ValueError:
+            return jsonify({'error': 'Invalid quantity or price format'}), 400
+
+        supplier_product = SupplierProduct(
+            supplier_id=supplier_id,
+            product_id=product_id,
+            quantity=quantity,
+            price=price
+        )
+        
+        try:
+            db.session.add(supplier_product)
+            db.session.commit()
+            return jsonify({'message': 'Supplier product added successfully'}), 201
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
 @app.route('/supplyrequests', methods=['GET'])
 def get_supply_requests():
     supply_requests = SupplyRequest.query.all()
-    supply_requests_data = [request.to_dict() for request in supply_requests]
-    return make_response(jsonify(supply_requests_data), 200)                  
+    return jsonify([request.to_dict() for request in supply_requests])
+
+if __name__ == '__main__':
+    app.run(port=5555, debug=True)
