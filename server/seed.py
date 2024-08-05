@@ -2,7 +2,7 @@ from datetime import datetime
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import app
-from models import Product, db, Inventory, Category, Payment, Supplier, SupplyRequest, User
+from models import Product, db, Inventory, Category, Payment, Supplier, SupplyRequest, User, SupplierProduct
 
 fake = Faker()
 
@@ -25,8 +25,7 @@ def init_db():
             name=fake.word(),
             category_id=fake.random_element(categories).id,
             bp=fake.random_number(digits=2),
-            sp=fake.random_number(digits=2),
-            created_at=datetime.utcnow()
+            sp=fake.random_number(digits=2)
         )
         products.append(product)
     db.session.add_all(products)
@@ -56,7 +55,6 @@ def init_db():
             role=fake.random_element(elements=("Admin", "User"))
         )
         users.append(user)
-    
     db.session.add_all(users)
     db.session.commit()
     print("Users seeding complete.")
@@ -97,6 +95,21 @@ def init_db():
         payments.append(payment)
     db.session.add_all(payments)
     db.session.commit()
+
+    # Create some supplier-product relationships
+    supplier_products = []
+    for _ in range(10):  
+        supplier_product = SupplierProduct(
+            supplier_id=fake.random_element(suppliers).id,
+            product_id=fake.random_element(products).id,
+            quantity=fake.random_number(digits=2),
+            price=fake.random_number(digits=4)
+        )
+        supplier_products.append(supplier_product)
+    
+    db.session.add_all(supplier_products)
+    db.session.commit()
+    print("SupplierProduct data seeded successfully!")
 
 if __name__ == "__main__":
     with app.app_context():
