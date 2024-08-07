@@ -3,8 +3,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import app, db, api, login_manager
-from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction
-from datetime import datetime
+from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction,SaleReturn,Sale,Purchase
+from datetime import datetime,timedelta
+from config import app
+from sqlalchemy import func
 
 @app.route('/')
 def index():
@@ -321,6 +323,123 @@ def get_supplier_products():
 def get_supply_requests():
     supply_requests = SupplyRequest.query.all()
     return jsonify([request.to_dict() for request in supply_requests])
+
+@app.route('/product_sales', methods=['GET'])
+def product_sales():
+    try:
+        # Query to get sales data for all products
+        product_sales = db.session.query(
+            Product.name,
+            db.func.sum(Sale.quantity).label('total_quantity')
+        ).join(Sale, Product.id == Sale.product_id
+        ).group_by(Product.id
+        ).order_by(db.func.sum(Sale.quantity).desc()
+        ).all()
+
+        sales_data = [{'product': product.name, 'total_quantity': product.total_quantity} for product in product_sales]
+
+        return jsonify(sales_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/total_revenue', methods=['GET'])
+def total_revenue():
+    try:
+        # Query to calculate total revenue
+        total_revenue = db.session.query(
+            db.func.sum(Sale.quantity * Sale.price).label('total_revenue')
+        ).scalar()  # .scalar() to get a single value from the query
+
+        return jsonify({
+            'total_revenue': total_revenue if total_revenue is not None else 0
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/total_sale_return', methods=['GET'])
+def total_sale_return():
+    try:
+        total_return = db.session.query(
+            db.func.sum(SaleReturn.quantity)
+        ).scalar()
+        
+        return jsonify({'total_sale_return': total_return})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/total_purchase', methods=['GET'])
+def total_purchase():
+    try:
+        total_purchase = db.session.query(
+            db.func.sum(Purchase.price * Purchase.quantity)
+        ).scalar()
+        
+        return jsonify({'total_purchase': total_purchase})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/total_income', methods=['GET'])
+def total_income():
+    try:
+        total_income = db.session.query(
+            db.func.sum(Sale.price * Sale.quantity) - db.func.sum(Purchase.price * Purchase.quantity)
+        ).scalar()
+        
+        return jsonify({'total_income': total_income})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/best_seller_last_7_days', methods=['GET'])
+def best_seller_last_7_days():
+    try:
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        best_seller = db.session.query(
+            Product.name,
+            db.func.sum(Sale.quantity).label('total_quantity')
+        ).join(Sale, Product.id == Sale.product_id
+        ).filter(Sale.sale_date >= seven_days_ago
+        ).group_by(Product.id
+        ).order_by(db.func.sum(Sale.quantity).desc()
+        ).first()
+        
+        if best_seller:
+            return jsonify({
+                'product': best_seller.name,
+                'total_quantity': best_seller.total_quantity
+            })
+        else:
+            return jsonify({'error': 'No sales data available for the last 7 days'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/sales_data', methods=['GET'])
+def sales_data():
+    try:
+        # Query sales data
+        sales = db.session.query(
+            Sale.sale_date.label('date'),
+            db.func.sum(Sale.price).label('amount')
+        ).group_by(Sale.sale_date).all()
+
+        # Format data for frontend
+        data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in sales]
+
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/profit_loss_data', methods=['GET'])
+def profit_loss_data():
+    try:
+        # Query to calculate profit and loss
+        result = db.session.query(
+            Sale.sale_date.label('date'),
+            func.sum(Sale.price * Sale.quantity).label('amount')  # Example calculation
+        ).group_by(Sale.sale_date).all()
+
+        # Format data for frontend
+        data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in result]
+
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
