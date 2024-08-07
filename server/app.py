@@ -145,7 +145,6 @@ def get_user_activities(user_id):
 def get_products():
     products = Product.query.all()
     return jsonify([product.to_dict() for product in products])
-
 @app.route('/product/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
 def product_detail(product_id):
     product = Product.query.get(product_id)
@@ -180,6 +179,10 @@ def product_detail(product_id):
 
     elif request.method == 'DELETE':
         try:
+            # Manually handle related Purchase records
+            Purchase.query.filter_by(product_id=product_id).delete()
+
+            # Delete the Product record
             db.session.delete(product)
             db.session.commit()
             return jsonify({'message': 'Product deleted successfully'}), 200

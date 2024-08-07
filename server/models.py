@@ -29,8 +29,8 @@ class Product(db.Model, SerializerMixin):
     category = db.relationship('Category', back_populates='products')
     inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
     product_sales = db.relationship('Sale', back_populates='product')
-    purchases = db.relationship('Purchase', back_populates='product')
-    supplier_products = db.relationship('SupplierProduct', back_populates='product')
+    purchases = db.relationship('Purchase', back_populates='product', cascade='all, delete-orphan')  # Ensure cascade here
+    supplier_products = db.relationship('SupplierProduct', back_populates='product', cascade='all, delete-orphan')  # Ensure cascade here
     
     serialize_rules = ('-inventory_items.product',)
     
@@ -158,7 +158,7 @@ class SaleReturn(db.Model):
 class Purchase(db.Model):
     __tablename__ = 'purchases'
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
