@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from faker import Faker
 from werkzeug.security import generate_password_hash
 from app import app
-from models import Product, db, Inventory, Category, Payment, Supplier, SupplyRequest, User, SupplierProduct
+from models import Product, db, Inventory, Category, Payment, Supplier, SupplyRequest, User, SupplierProduct, Purchase, Sale, SaleReturn
+import random
 
 fake = Faker()
 
@@ -19,30 +20,13 @@ def init_db():
     db.session.commit()
 
     # Create some products
-    products = []
-    for _ in range(100):
-        product = Product(
-            name=fake.word(),
-            category_id=fake.random_element(categories).id,
-            bp=fake.random_number(digits=2),
-            sp=fake.random_number(digits=2)
-        )
-        products.append(product)
+    products = [Product(
+        name=fake.word(),
+        category_id=fake.random_int(min=1, max=len(categories)),
+        bp=fake.random_number(digits=2),
+        sp=fake.random_number(digits=2)
+    ) for _ in range(20)]
     db.session.add_all(products)
-    db.session.commit()
-
-    # Create some inventory records
-    inventories = []
-    for product in products:
-        inventory = Inventory(
-            product_id=product.id,
-            quantity=fake.random_number(digits=3),
-            spoilt_quantity=fake.random_number(digits=1),
-            payment_status=fake.random_element(["Paid", "Unpaid"]),
-            created_at=datetime.utcnow()
-        )
-        inventories.append(inventory)
-    db.session.add_all(inventories)
     db.session.commit()
 
     # Create some users
@@ -68,6 +52,49 @@ def init_db():
         )
         suppliers.append(supplier)
     db.session.add_all(suppliers)
+    db.session.commit()
+
+    # Create some inventory records
+    inventories = []
+    for product in products:
+        inventory = Inventory(
+            product_id=product.id,
+            quantity=fake.random_number(digits=3),
+            spoilt_quantity=fake.random_number(digits=1),
+            payment_status=fake.random_element(["Paid", "Unpaid"]),
+            created_at=datetime.utcnow()
+        )
+        inventories.append(inventory)
+    db.session.add_all(inventories)
+    db.session.commit()
+
+    # Create some sales
+    sales = [Sale(
+        product_id=fake.random_element(products).id,
+        quantity=fake.random_number(digits=2),
+        price=fake.random_number(digits=3),
+        sale_date=datetime.utcnow() - timedelta(days=fake.random_int(min=0, max=7))
+    ) for _ in range(20)]  # Adjust quantity as needed
+    db.session.add_all(sales)
+    db.session.commit()
+
+    # Create some sale returns
+    sale_returns = [SaleReturn(
+        sale_id=fake.random_element(sales).id,
+        quantity=fake.random_number(digits=1),
+        return_date=datetime.utcnow() - timedelta(days=fake.random_int(min=0, max=7))
+    ) for _ in range(10)]  # Adjust quantity as needed
+    db.session.add_all(sale_returns)
+    db.session.commit()
+
+    # Create some purchases
+    purchases = [Purchase(
+        product_id=fake.random_element(products).id,
+        quantity=fake.random_number(digits=2),
+        price=fake.random_number(digits=3),
+        purchase_date=datetime.utcnow() - timedelta(days=fake.random_int(min=0, max=30))
+    ) for _ in range(20)]  # Adjust quantity as needed
+    db.session.add_all(purchases)
     db.session.commit()
 
     # Create some supply requests
@@ -98,7 +125,7 @@ def init_db():
 
     # Create some supplier-product relationships
     supplier_products = []
-    for _ in range(10):  
+    for _ in range(10):
         supplier_product = SupplierProduct(
             supplier_id=fake.random_element(suppliers).id,
             product_id=fake.random_element(products).id,
