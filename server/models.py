@@ -41,7 +41,8 @@ class Product(db.Model, SerializerMixin):
             'name': self.name,
             'category_id': self.category_id,
             'bp': self.bp,
-            'sp': self.sp
+            'sp': self.sp,
+            "image":self.image_url
         }
 
 class Inventory(db.Model, SerializerMixin):
