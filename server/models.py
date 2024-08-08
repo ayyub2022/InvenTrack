@@ -25,6 +25,7 @@ class Product(db.Model, SerializerMixin):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     bp = db.Column(db.Float, nullable=False)
     sp = db.Column(db.Float, nullable=False)
+    image_url = db.Column(db.String,nullable=True)
     
     category = db.relationship('Category', back_populates='products')
     inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
@@ -83,6 +84,13 @@ class Category(db.Model, SerializerMixin):
     
     products = db.relationship('Product', back_populates='category')
 
+    def to_dict(self):
+        return {
+            "id":self.id,
+            "name":self.name,
+            "description":self.description
+        }
+
 class Supplier(db.Model, SerializerMixin):
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
@@ -134,6 +142,7 @@ class ProductCategory(db.Model):
     
     product = db.relationship('Product', backref=backref('product_categories', cascade='all, delete-orphan'))
     category = db.relationship('Category', backref=backref('product_categories', cascade='all, delete-orphan'))
+    
 
 class Sale(db.Model):
     __tablename__ = 'sales'
