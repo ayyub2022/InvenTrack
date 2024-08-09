@@ -3,6 +3,7 @@ from app import app
 from config import db
 from models import Product, Category, User, Inventory, Transaction, Supplier, SupplyRequest, Payment, SupplierProduct, Sale, SaleReturn, Purchase
 from faker import Faker
+from sqlalchemy.exc import IntegrityError
 import random
 
 fake = Faker()
@@ -11,29 +12,36 @@ def fetch_data(url, limit=None):
     response = requests.get(url)
     response.raise_for_status()
     data = response.json()
-    if limit and len(data) < limit:
-        data.extend([None] * (limit - len(data)))  # Add placeholders for additional data
-    return data[:limit]  # Ensure we only return the specified limit
+    if limit:
+        data = data[:limit]  # Apply limit if specified
+    return data
 
-def seed_categories(limit=10):
-    categories = fetch_data('https://api.escuelajs.co/api/v1/categories', limit)
-    for i, category in enumerate(categories):
-        if category:
-            new_category = Category(
-                id=category['id'],
-                name=category['name'],
-                description=f"{category['name']} category"
-            )
-        else:  # Create dummy data
-            new_category = Category(
-                name=fake.word(),
-                description=fake.sentence()
-            )
-        db.session.add(new_category)
-    db.session.commit()
-    print(f"Seeded {limit} categories.")
 
-def seed_products(limit=10):
+def seed_categories():
+    categories = fetch_data('https://api.escuelajs.co/api/v1/categories')
+    
+    for category in categories:
+        if category and category['name'] != "Testing Category":
+            # Check if the category already exists
+            existing_category = Category.query.filter_by(id=category['id']).first()
+            
+            if not existing_category:
+                new_category = Category(
+                    id=category['id'],
+                    name=category['name'],
+                    description=f"{category['name']} category"
+                )
+                db.session.add(new_category)
+    
+    # Commit only after processing all categories
+    try:
+        db.session.commit()
+        print(f"Seeded {len(categories)} categories (excluding 'Testing Category').")
+    except IntegrityError as e:
+        db.session.rollback()
+        print(f"Error occurred while seeding categories: {e}")
+
+def seed_products(limit=20):
     products = fetch_data('https://api.escuelajs.co/api/v1/products', limit)
     for i, product in enumerate(products):
         if product:
@@ -56,28 +64,33 @@ def seed_products(limit=10):
     db.session.commit()
     print(f"Seeded {limit} products.")
 
-def seed_users(limit=10):
-    users = fetch_data('https://api.escuelajs.co/api/v1/users', limit)
-    for i, user in enumerate(users):
+def seed_users():
+    users = fetch_data('https://api.escuelajs.co/api/v1/users')
+    
+    for user in users:
         if user:
-            new_user = User(
-                name=user['name'],
-                email=user['email'],
-                password=user['password'],
-                role=user["role"]
-            )
-        else:  # Create dummy data
-            new_user = User(
-                name=fake.name(),
-                email=fake.email(),
-                password=fake.password(),
-                role=random.choice(['admin', 'customer', 'clerk'])
-            )
-        db.session.add(new_user)
-    db.session.commit()
-    print(f"Seeded {limit} users.")
+            # Check if the user already exists
+            existing_user = User.query.filter_by(email=user['email']).first()
+            
+            if not existing_user:
+                new_user = User(
+                    name=user['name'],
+                    email=user['email'],
+                    password=user['password'],  # Ensure this is handled securely in practice
+                    role=user["role"]
+                )
+                db.session.add(new_user)
+    
+    # Commit only after processing all users
+    try:
+        db.session.commit()
+        print(f"Seeded {len(users)} users.")
+    except IntegrityError:
+        db.session.rollback()
+        print("Error occurred while seeding users.")
 
-def seed_inventory(limit=10):
+
+def seed_inventory(limit=20):
     for i in range(1, limit+1):
         new_inventory = Inventory(
             product_id=random.randint(1, limit),
@@ -89,7 +102,7 @@ def seed_inventory(limit=10):
     db.session.commit()
     print(f"Seeded {limit} inventory items.")
 
-def seed_transactions(limit=10):
+def seed_transactions(limit=20):
     for i in range(1, limit+1):
         new_transaction = Transaction(
             user_id=random.randint(1, limit),
@@ -101,7 +114,7 @@ def seed_transactions(limit=10):
     db.session.commit()
     print(f"Seeded {limit} transactions.")
 
-def seed_suppliers(limit=10):
+def seed_suppliers(limit=20):
     for i in range(limit):
         new_supplier = Supplier(
             name=fake.company(),
@@ -111,7 +124,7 @@ def seed_suppliers(limit=10):
     db.session.commit()
     print(f"Seeded {limit} suppliers.")
 
-def seed_supply_requests(limit=10):
+def seed_supply_requests(limit=20):
     for i in range(limit):
         new_supply_request = SupplyRequest(
             product_id=random.randint(1, limit),
@@ -123,7 +136,7 @@ def seed_supply_requests(limit=10):
     db.session.commit()
     print(f"Seeded {limit} supply requests.")
 
-def seed_payments(limit=10):
+def seed_payments(limit=20):
     for i in range(limit):
         new_payment = Payment(
             inventory_id=random.randint(1, limit),
@@ -133,7 +146,7 @@ def seed_payments(limit=10):
     db.session.commit()
     print(f"Seeded {limit} payments.")
 
-def seed_supplier_products(limit=10):
+def seed_supplier_products(limit=20):
     for i in range(limit):
         new_supplier_product = SupplierProduct(
             supplier_id=random.randint(1, limit),
@@ -145,7 +158,7 @@ def seed_supplier_products(limit=10):
     db.session.commit()
     print(f"Seeded {limit} supplier products.")
 
-def seed_sales(limit=10):
+def seed_sales(limit=20):
     for i in range(limit):
         new_sale = Sale(
             product_id=random.randint(1, limit),
@@ -156,7 +169,7 @@ def seed_sales(limit=10):
     db.session.commit()
     print(f"Seeded {limit} sales.")
 
-def seed_sale_returns(limit=10):
+def seed_sale_returns(limit=20):
     for i in range(limit):
         new_sale_return = SaleReturn(
             sale_id=random.randint(1, limit),
@@ -166,7 +179,7 @@ def seed_sale_returns(limit=10):
     db.session.commit()
     print(f"Seeded {limit} sale returns.")
 
-def seed_purchases(limit=10):
+def seed_purchases(limit=20):
     for i in range(limit):
         new_purchase = Purchase(
             product_id=random.randint(1, limit),
@@ -180,19 +193,18 @@ def seed_purchases(limit=10):
 def seed_database():
     db.drop_all()
     db.create_all()
-    limit = 10  # Ensure each table has at least 10 records
-    seed_categories(limit)
-    seed_products(limit)
-    seed_users(limit)
-    seed_inventory(limit)
-    seed_transactions(limit)
-    seed_suppliers(limit)
-    seed_supply_requests(limit)
-    seed_payments(limit)
-    seed_supplier_products(limit)
-    seed_sales(limit)
-    seed_sale_returns(limit)
-    seed_purchases(limit)
+    seed_categories()
+    seed_products(90)  # Keep limit for products if needed
+    seed_users()  # No limit for users
+    seed_inventory(90)  # Keep limit for inventory if needed
+    seed_transactions(90)  # Keep limit for transactions if needed
+    seed_suppliers(90)  # Keep limit for suppliers if needed
+    seed_supply_requests(90)  # Keep limit for supply requests if needed
+    seed_payments(90)  # Keep limit for payments if needed
+    seed_supplier_products(90)  # Keep limit for supplier products if needed
+    seed_sales(90)  # Keep limit for sales if needed
+    seed_sale_returns(90)  # Keep limit for sale returns if needed
+    seed_purchases(90)  # Keep limit for purchases if needed
 
 if __name__ == "__main__":
     with app.app_context():
