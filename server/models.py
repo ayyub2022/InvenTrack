@@ -29,8 +29,8 @@ class Product(db.Model, SerializerMixin):
     category = db.relationship('Category', back_populates='products')
     inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
     product_sales = db.relationship('Sale', back_populates='product')
-    purchases = db.relationship('Purchase', back_populates='product', cascade='all, delete-orphan')  # Ensure cascade here
-    supplier_products = db.relationship('SupplierProduct', back_populates='product', cascade='all, delete-orphan')  # Ensure cascade here
+    purchases = db.relationship('Purchase', back_populates='product', cascade='all, delete-orphan')  
+    supplier_products = db.relationship('SupplierProduct', back_populates='product', cascade='all, delete-orphan')  
     
     serialize_rules = ('-inventory_items.product',)
     
@@ -83,6 +83,12 @@ class Category(db.Model, SerializerMixin):
     
     products = db.relationship('Product', back_populates='category')
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+        }
 class Supplier(db.Model, SerializerMixin):
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
@@ -111,7 +117,7 @@ class Payment(db.Model, SerializerMixin):
         return {
             'id': self.id,
             'inventory_id': self.inventory_id,
-            'amount': str(self.amount),  # Convert Numeric to string for JSON serialization
+            'amount': str(self.amount),  
             'payment_date': self.payment_date.strftime('%Y-%m-%d')
         }
 

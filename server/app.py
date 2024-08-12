@@ -179,10 +179,10 @@ def product_detail(product_id):
 
     elif request.method == 'DELETE':
         try:
-            # Manually handle related Purchase records
+            
             Purchase.query.filter_by(product_id=product_id).delete()
 
-            # Delete the Product record
+            
             db.session.delete(product)
             db.session.commit()
             return jsonify({'message': 'Product deleted successfully'}), 200
@@ -274,6 +274,7 @@ def get_products_by_category(category_id):
     products = Product.query.filter_by(category_id=category_id).all()
     return jsonify([product.to_dict() for product in products])
 
+
 @app.route('/suppliers', methods=['GET'])
 def get_suppliers():
     suppliers = Supplier.query.all()
@@ -330,7 +331,7 @@ def get_supply_requests():
 @app.route('/product_sales', methods=['GET'])
 def product_sales():
     try:
-        # Query to get sales data for all products
+        
         product_sales = db.session.query(
             Product.name,
             db.func.sum(Sale.quantity).label('total_quantity')
@@ -348,10 +349,10 @@ def product_sales():
 @app.route('/total_revenue', methods=['GET'])
 def total_revenue():
     try:
-        # Query to calculate total revenue
+        
         total_revenue = db.session.query(
             db.func.sum(Sale.quantity * Sale.price).label('total_revenue')
-        ).scalar()  # .scalar() to get a single value from the query
+        ).scalar()  
 
         return jsonify({
             'total_revenue': total_revenue if total_revenue is not None else 0
@@ -416,13 +417,13 @@ def best_seller_last_7_days():
 @app.route('/sales_data', methods=['GET'])
 def sales_data():
     try:
-        # Query sales data
+        
         sales = db.session.query(
             Sale.sale_date.label('date'),
             db.func.sum(Sale.price).label('amount')
         ).group_by(Sale.sale_date).all()
 
-        # Format data for frontend
+        
         data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in sales]
 
         return jsonify(data)
@@ -431,13 +432,13 @@ def sales_data():
 @app.route('/profit_loss_data', methods=['GET'])
 def profit_loss_data():
     try:
-        # Query to calculate profit and loss
+        
         result = db.session.query(
             Sale.sale_date.label('date'),
-            func.sum(Sale.price * Sale.quantity).label('amount')  # Example calculation
+            func.sum(Sale.price * Sale.quantity).label('amount')  
         ).group_by(Sale.sale_date).all()
 
-        # Format data for frontend
+        
         data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in result]
 
         return jsonify(data)
