@@ -30,8 +30,8 @@ class Product(db.Model, SerializerMixin):
     category = db.relationship('Category', back_populates='products')
     inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
     product_sales = db.relationship('Sale', back_populates='product')
-    purchases = db.relationship('Purchase', back_populates='product')
-    supplier_products = db.relationship('SupplierProduct', back_populates='product')
+    purchases = db.relationship('Purchase', back_populates='product', cascade='all, delete-orphan')  
+    supplier_products = db.relationship('SupplierProduct', back_populates='product', cascade='all, delete-orphan')  
     
     serialize_rules = ('-inventory_items.product',)
     
@@ -87,11 +87,12 @@ class Category(db.Model, SerializerMixin):
 
     def to_dict(self):
         return {
-            "id":self.id,
-            "name":self.name,
-            "description":self.description
-        }
 
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+        }
+            
 class Supplier(db.Model, SerializerMixin):
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
@@ -100,7 +101,7 @@ class Supplier(db.Model, SerializerMixin):
 
     supplier_products = db.relationship('SupplierProduct', back_populates='supplier')
 
-class SupplyRequest(db.Model, SerializerMixin):
+class SupplyRequest(db.Model):
     __tablename__ = 'supply_requests'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
@@ -108,6 +109,16 @@ class SupplyRequest(db.Model, SerializerMixin):
     clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'clerk_id': self.clerk_id,
+            'status': self.status,
+            'created_at': self.created_at.isoformat()
+        }
 
 class Payment(db.Model, SerializerMixin):
     __tablename__ = 'payments'
@@ -120,7 +131,7 @@ class Payment(db.Model, SerializerMixin):
         return {
             'id': self.id,
             'inventory_id': self.inventory_id,
-            'amount': str(self.amount),  # Convert Numeric to string for JSON serialization
+            'amount': str(self.amount),  
             'payment_date': self.payment_date.strftime('%Y-%m-%d')
         }
 
@@ -168,7 +179,7 @@ class SaleReturn(db.Model):
 class Purchase(db.Model):
     __tablename__ = 'purchases'
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     purchase_date = db.Column(db.DateTime, default=datetime.utcnow)

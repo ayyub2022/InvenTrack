@@ -145,7 +145,6 @@ def get_user_activities(user_id):
 def get_products():
     products = Product.query.all()
     return jsonify([product.to_dict() for product in products])
-
 @app.route('/product/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
 def product_detail(product_id):
     product = Product.query.get(product_id)
@@ -180,6 +179,10 @@ def product_detail(product_id):
 
     elif request.method == 'DELETE':
         try:
+            
+            Purchase.query.filter_by(product_id=product_id).delete()
+
+            
             db.session.delete(product)
             db.session.commit()
             return jsonify({'message': 'Product deleted successfully'}), 200
@@ -271,6 +274,7 @@ def get_products_by_category(category_id):
     products = Product.query.filter_by(category_id=category_id).all()
     return jsonify([product.to_dict() for product in products])
 
+
 @app.route('/suppliers', methods=['GET'])
 def get_suppliers():
     suppliers = Supplier.query.all()
@@ -318,16 +322,70 @@ def get_supplier_products():
         except SQLAlchemyError as e:
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
+@app.route('/supplyrequests', methods=['GET', 'POST'])
+def manage_supply_requests():
+    if request.method == 'GET':
+        supply_requests = SupplyRequest.query.all()
+        return jsonify([request.to_dict() for request in supply_requests])
 
-@app.route('/supplyrequests', methods=['GET'])
-def get_supply_requests():
-    supply_requests = SupplyRequest.query.all()
-    return jsonify([request.to_dict() for request in supply_requests])
+    if request.method == 'POST':
+        data = request.get_json()
+        new_request = SupplyRequest(
+            product_id=data['product_id'],
+            quantity=data['quantity'],
+            clerk_id=data['clerk_id'],
+            status=data['status']
+        )
+        db.session.add(new_request)
+        db.session.commit()
+        return jsonify(new_request.to_dict()), 201
 
+@app.route('/supplyrequests/<int:supplyrequest_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_supply_request(supplyrequest_id):
+    supply_request = SupplyRequest.query.get(supplyrequest_id)
+
+    if not supply_request:
+        return jsonify({'error': 'Supply request not found'}), 404
+
+    if request.method == 'GET':
+        return jsonify(supply_request.to_dict())
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        supply_request.product_id = data.get('product_id', supply_request.product_id)
+        supply_request.quantity = data.get('quantity', supply_request.quantity)
+        supply_request.clerk_id = data.get('clerk_id', supply_request.clerk_id)
+        supply_request.status = data.get('status', supply_request.status)
+        db.session.commit()
+        return jsonify(supply_request.to_dict())
+
+    if request.method == 'DELETE':
+        db.session.delete(supply_request)
+        db.session.commit()
+        return jsonify({'message': 'Supply request deleted'})
+    
+@app.route('/complete_supply_request/<int:supplyrequest_id>', methods=['PUT'])
+@login_required
+def complete_supply_request(supplyrequest_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    supply_request = SupplyRequest.query.get(supplyrequest_id)
+    if not supply_request:
+        return jsonify({'error': 'Supply request not found'}), 404
+
+    supply_request.status = 'Completed'
+    try:
+        db.session.commit()
+        return jsonify(supply_request.to_dict()), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    
 @app.route('/product_sales', methods=['GET'])
 def product_sales():
     try:
-        # Query to get sales data for all products
+        
         product_sales = db.session.query(
             Product.name,
             db.func.sum(Sale.quantity).label('total_quantity')
@@ -345,10 +403,10 @@ def product_sales():
 @app.route('/total_revenue', methods=['GET'])
 def total_revenue():
     try:
-        # Query to calculate total revenue
+        
         total_revenue = db.session.query(
             db.func.sum(Sale.quantity * Sale.price).label('total_revenue')
-        ).scalar()  # .scalar() to get a single value from the query
+        ).scalar()  
 
         return jsonify({
             'total_revenue': total_revenue if total_revenue is not None else 0
@@ -413,13 +471,13 @@ def best_seller_last_7_days():
 @app.route('/sales_data', methods=['GET'])
 def sales_data():
     try:
-        # Query sales data
+        
         sales = db.session.query(
             Sale.sale_date.label('date'),
             db.func.sum(Sale.price).label('amount')
         ).group_by(Sale.sale_date).all()
 
-        # Format data for frontend
+        
         data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in sales]
 
         return jsonify(data)
@@ -428,18 +486,109 @@ def sales_data():
 @app.route('/profit_loss_data', methods=['GET'])
 def profit_loss_data():
     try:
-        # Query to calculate profit and loss
+        
         result = db.session.query(
             Sale.sale_date.label('date'),
-            func.sum(Sale.price * Sale.quantity).label('amount')  # Example calculation
+            func.sum(Sale.price * Sale.quantity).label('amount')  
         ).group_by(Sale.sale_date).all()
 
-        # Format data for frontend
+        
         data = [{'date': sale.date.strftime('%Y-%m-%d'), 'amount': sale.amount} for sale in result]
 
         return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/clerk/login', methods=['POST'])
+def clerk_login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user or not check_password_hash(user.password, password):
+        return jsonify({'error': 'Invalid email or password'}), 401
+
+    if user.role != 'Clerk':
+        return jsonify({'error': 'User is not a clerk'}), 403
+
+    login_user(user)
+    return jsonify({'message': 'Clerk login successful'}), 200
+@app.route('/admin/clerk', methods=['POST'])
+@login_required
+def create_clerk():
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not name or not email or not password:
+        return jsonify({'error': 'All fields are required'}), 422
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Email already exists'}), 422
+
+    new_clerk = User(
+        name=name,
+        email=email,
+        password=generate_password_hash(password),
+        role='Clerk'
+    )
+
+    try:
+        db.session.add(new_clerk)
+        db.session.commit()
+        return jsonify({'message': 'Clerk created successfully'}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+@app.route('/admin/clerks', methods=['GET'])
+@login_required
+def get_clerks():
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    clerks = User.query.filter_by(role='Clerk').all()
+    return jsonify([clerk.to_dict() for clerk in clerks])
+@app.route('/admin/clerks/<int:clerk_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def manage_clerk(clerk_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    clerk = User.query.get(clerk_id)
+    if not clerk:
+        return jsonify({'error': 'Clerk not found'}), 404
+
+    if request.method == 'PATCH':
+        data = request.get_json()
+        role = data.get('role')
+
+        if role and role == 'Clerk':
+            clerk.role = role
+            try:
+                db.session.commit()
+                return jsonify(clerk.to_dict()), 200
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                return jsonify({'error': str(e)}), 500
+
+        return jsonify({'error': 'Invalid data'}), 400
+
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(clerk)
+            db.session.commit()
+            return jsonify({'message': 'Clerk deleted successfully'}), 200
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
