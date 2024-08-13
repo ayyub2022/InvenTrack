@@ -97,7 +97,7 @@ class Supplier(db.Model, SerializerMixin):
 
     supplier_products = db.relationship('SupplierProduct', back_populates='supplier')
 
-class SupplyRequest(db.Model, SerializerMixin):
+class SupplyRequest(db.Model):
     __tablename__ = 'supply_requests'
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
@@ -105,6 +105,16 @@ class SupplyRequest(db.Model, SerializerMixin):
     clerk_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     status = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'clerk_id': self.clerk_id,
+            'status': self.status,
+            'created_at': self.created_at.isoformat()
+        }
 
 class Payment(db.Model, SerializerMixin):
     __tablename__ = 'payments'
