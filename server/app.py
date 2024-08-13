@@ -4,9 +4,25 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import app, db, api, login_manager
 from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction,SaleReturn,Sale,Purchase
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta, timezone
 from config import app
 from sqlalchemy import func
+from flask_jwt_extended import get_jwt, create_access_token, get_jwt_identity,set_access_cookies, unset_jwt_cookies, jwt_required
+
+@app.after_request
+def refresh_expiring_jwts(response):
+    try:
+        exp_timestamp = get_jwt()["exp"]
+        now = datetime.now(timezone.utc)
+        target_timestamp = datetime.timestamp(now + timedelta(minutes=30))
+        if target_timestamp > exp_timestamp:
+            access_token = create_access_token(identity=get_jwt_identity())
+            set_access_cookies(response, access_token)
+        return response
+    except (RuntimeError, KeyError):
+        # Case where there is not a valid JWT. Just return the original response
+        return response
+
 
 @app.route('/')
 def index():
@@ -60,13 +76,18 @@ def login():
         return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
 
     login_user(user)
-    return jsonify({'success': True, 'message': 'Login successful'})
+    response = jsonify({'success': True, 'message': 'Login successful'})
+    access_token = create_access_token(identity=user.id)
+    set_access_cookies(response, access_token)
+    return response
 
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
+    response = jsonify({'success': True, 'message': 'Logout successful'})
+    unset_jwt_cookies(response)
     logout_user()
-    return jsonify({"message": "Logged out successfully"}), 200
+    return response
 
 @app.route('/checksession', methods=['GET'])
 def check_session():
@@ -111,28 +132,35 @@ def manage_user(user_id):
 
 @app.route('/user', methods=['GET'])
 @login_required
+@jwt_required()
 def user_details():
     user_id = current_user.id
     user = User.query.get(user_id)
     return make_response(jsonify(user.to_dict()), 200)
 
 @app.route('/profile', methods=['GET'])
-@login_required
+# @login_required
+@jwt_required()
 def profile():
-    user = current_user
-    transactions = Transaction.query.filter_by(user_id=user.id).all()
-    transaction_history = [transaction.to_dict() for transaction in transactions]
-    activities = get_user_activities(user.id)
+    userId = get_jwt_identity()
+    print(userId)
+    try:
+        user =User.query.filter_by(id=userId).first()
+        transactions =user.transactions
+        transaction_history = [transaction.to_dict() for transaction in transactions]
+        activities = get_user_activities(userId)
 
-    user_profile = {
-        'name': user.name,
-        'email': user.email,
-        'created_at': user.created_at,
-        'transaction_history': transaction_history,
-        'activities': activities
-    }
+        user_profile = {
+            'name': user.name,
+            'email': user.email,
+            'created_at': user.created_at,
+            'transaction_history': transaction_history,
+            'activities': activities
+        }
 
-    return jsonify(user_profile), 200
+        return jsonify(user_profile), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 def get_user_activities(user_id):
     activities = [

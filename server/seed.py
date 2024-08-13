@@ -16,24 +16,21 @@ def fetch_data(url, limit=None):
         data = data[:limit]  # Apply limit if specified
     return data
 
-
 def seed_categories():
-    categories = fetch_data('https://api.escuelajs.co/api/v1/categories')
+    categories = fetch_data('https://fakestoreapi.com/products/categories')
     
     for category in categories:
-        if category and category['name'] != "Testing Category":
-            # Check if the category already exists
-            existing_category = Category.query.filter_by(id=category['id']).first()
+        if category and category != "Testing Category":
+            existing_category = Category.query.filter_by(name=category).first()
             
             if not existing_category:
                 new_category = Category(
-                    id=category['id'],
-                    name=category['name'],
-                    description=f"{category['name']} category"
+                    name=category,
+                    description=f"{category} category",
+                    image_url=None  # or a placeholder URL if needed
                 )
                 db.session.add(new_category)
     
-    # Commit only after processing all categories
     try:
         db.session.commit()
         print(f"Seeded {len(categories)} categories (excluding 'Testing Category').")
@@ -41,35 +38,43 @@ def seed_categories():
         db.session.rollback()
         print(f"Error occurred while seeding categories: {e}")
 
-def seed_products(limit=20):
-    products = fetch_data('https://api.escuelajs.co/api/v1/products', limit)
+def seed_products():
+    products = fetch_data('https://fakestoreapi.com/products')
+    seeded_count = 0
+
     for i, product in enumerate(products):
         if product:
-            new_product = Product(
-                name=product['title'],
-                category_id=product['category']['id'],
-                bp=float(product['price']) * 0.8,
-                sp=float(product['price']),
-                image_url=product['images'][0] if product['images'] else None
-            )
-        else:  # Create dummy data
+            existing_product = Product.query.filter_by(name=product['title']).first()
+            if not existing_product:
+                new_product = Product(
+                    name=product['title'],
+                    category_id=Category.query.filter_by(name=product["category"]).first().id,
+                    bp=float(product['price']) * 0.8,
+                    sp=float(product['price']),
+                    image_url=product["image"]
+                )
+                db.session.add(new_product)
+                seeded_count += 1
+        else:
+            max_category_id = db.session.query(db.func.max(Category.id)).scalar()
             new_product = Product(
                 name=fake.word(),
-                category_id=random.randint(1, limit),
+                category_id=random.randint(1, max_category_id),
                 bp=random.uniform(5.0, 50.0),
                 sp=random.uniform(50.0, 100.0),
                 image_url=fake.image_url()
             )
-        db.session.add(new_product)
+            db.session.add(new_product)
+            seeded_count += 1
+
     db.session.commit()
-    print(f"Seeded {limit} products.")
+    print(f"Seeded {seeded_count} products.")
 
 def seed_users():
     users = fetch_data('https://api.escuelajs.co/api/v1/users')
     
     for user in users:
         if user:
-            # Check if the user already exists
             existing_user = User.query.filter_by(email=user['email']).first()
             
             if not existing_user:
@@ -81,14 +86,12 @@ def seed_users():
                 )
                 db.session.add(new_user)
     
-    # Commit only after processing all users
     try:
         db.session.commit()
         print(f"Seeded {len(users)} users.")
     except IntegrityError:
         db.session.rollback()
         print("Error occurred while seeding users.")
-
 
 def seed_inventory(limit=20):
     for i in range(1, limit+1):
@@ -194,7 +197,7 @@ def seed_database():
     db.drop_all()
     db.create_all()
     seed_categories()
-    seed_products(90)  # Keep limit for products if needed
+    seed_products()  # Keep limit for products if needed
     seed_users()  # No limit for users
     seed_inventory(90)  # Keep limit for inventory if needed
     seed_transactions(90)  # Keep limit for transactions if needed
