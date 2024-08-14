@@ -4,37 +4,10 @@ from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import app, db, api, login_manager
 from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction,SaleReturn,Sale,Purchase
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta, timezone
+from flask_jwt_extended import get_jwt_identity,get_jwt,jwt_required,set_access_cookies,create_access_token,unset_jwt_cookies
 from config import app
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
-import os
-from flask_cors import CORS
-
-UPLOAD_FOLDER = 'uploads'  # Directory to save uploaded files
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-CORS(app, resources={r"/*": {"origins": "*"}})
-app.config['UPLOAD_FOLDER'] = 'path/to/upload/folder'
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
-
-@app.route('/upload_image', methods=['POST'])
-def upload_image():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(file_path)
-    
-    return jsonify({'message': 'File uploaded successfully', 'file_path': file_path}), 200
 
 @app.route('/')
 def index():
@@ -88,17 +61,24 @@ def login():
         return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
 
     login_user(user)
-    return jsonify({'success': True, 'message': 'Login successful'})
+    response = jsonify({'success': True, 'message': 'Login successful'})
+    access_token = create_access_token(identity=user.id)
+    set_access_cookies(response, access_token,)
+    return response
 
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
+    response = jsonify({'success': True, 'message': 'Logout successful'})
+    unset_jwt_cookies(response)
     logout_user()
-    return jsonify({"message": "Logged out successfully"}), 200
+    return response
 
 @app.route('/checksession', methods=['GET'])
+@jwt_required()
 def check_session():
-    user_id = session.get('user_id')
+    user_id = get_jwt_identity()
+    print(user_id)
     if user_id:
         user = User.query.filter_by(id=user_id).first()
         if user:
@@ -139,28 +119,35 @@ def manage_user(user_id):
 
 @app.route('/user', methods=['GET'])
 @login_required
+@jwt_required()
 def user_details():
     user_id = current_user.id
     user = User.query.get(user_id)
     return make_response(jsonify(user.to_dict()), 200)
 
 @app.route('/profile', methods=['GET'])
-@login_required
+# @login_required
+@jwt_required()
 def profile():
-    user = current_user
-    transactions = Transaction.query.filter_by(user_id=user.id).all()
-    transaction_history = [transaction.to_dict() for transaction in transactions]
-    activities = get_user_activities(user.id)
+    userId = get_jwt_identity()
+    print(userId)
+    try:
+        user =User.query.filter_by(id=userId).first()
+        transactions =user.transactions
+        transaction_history = [transaction.to_dict() for transaction in transactions]
+        activities = get_user_activities(userId)
 
-    user_profile = {
-        'name': user.name,
-        'email': user.email,
-        'created_at': user.created_at,
-        'transaction_history': transaction_history,
-        'activities': activities
-    }
+        user_profile = {
+            'name': user.name,
+            'email': user.email,
+            'created_at': user.created_at,
+            'transaction_history': transaction_history,
+            'activities': activities
+        }
 
-    return jsonify(user_profile), 200
+        return jsonify(user_profile), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 def get_user_activities(user_id):
     activities = [
