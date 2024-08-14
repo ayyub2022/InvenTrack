@@ -7,6 +7,34 @@ from models import Product, Category, User, Payment, SupplierProduct, SupplyRequ
 from datetime import datetime,timedelta
 from config import app
 from sqlalchemy import func
+from werkzeug.utils import secure_filename
+import os
+from flask_cors import CORS
+
+UPLOAD_FOLDER = 'uploads'  # Directory to save uploaded files
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+CORS(app, resources={r"/*": {"origins": "*"}})
+app.config['UPLOAD_FOLDER'] = 'path/to/upload/folder'
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(file_path)
+    
+    return jsonify({'message': 'File uploaded successfully', 'file_path': file_path}), 200
 
 @app.route('/')
 def index():
@@ -145,6 +173,9 @@ def get_user_activities(user_id):
 def get_products():
     products = Product.query.all()
     return jsonify([product.to_dict() for product in products])
+from flask import request, jsonify
+from sqlalchemy.exc import SQLAlchemyError
+
 @app.route('/product/<int:product_id>', methods=['GET', 'PUT', 'DELETE'])
 def product_detail(product_id):
     product = Product.query.get(product_id)
@@ -160,6 +191,7 @@ def product_detail(product_id):
         category_id = data.get('category_id')
         bp = data.get('bp')
         sp = data.get('sp')
+        image_url = data.get('image_url')
 
         if name is not None:
             product.name = name
@@ -169,6 +201,8 @@ def product_detail(product_id):
             product.bp = bp
         if sp is not None:
             product.sp = sp
+        if image_url is not None:
+            product.image_url = image_url  # Update the image URL
 
         try:
             db.session.commit()
@@ -179,10 +213,9 @@ def product_detail(product_id):
 
     elif request.method == 'DELETE':
         try:
-            
+            # Delete related purchases if necessary
             Purchase.query.filter_by(product_id=product_id).delete()
 
-            
             db.session.delete(product)
             db.session.commit()
             return jsonify({'message': 'Product deleted successfully'}), 200
@@ -197,6 +230,7 @@ def create_product():
     category_id = data.get('category_id')
     bp = data.get('bp')
     sp = data.get('sp')
+    image_url = data.get('image_url')  
 
     if not all([name, category_id, bp, sp]):
         return jsonify({'error': 'Missing data'}), 400
@@ -209,7 +243,8 @@ def create_product():
         name=name,
         category_id=category_id,
         bp=bp,
-        sp=sp
+        sp=sp,
+        image_url=image_url  
     )
 
     try:
@@ -219,7 +254,6 @@ def create_product():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/payment', methods=['GET', 'POST'])
 def manage_payment():
