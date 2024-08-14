@@ -24,6 +24,9 @@ class Transaction(db.Model, SerializerMixin):
             "user_id":self.user_id,
             "inventory_id":self.inventory_id,
             "transaction_type":self.transaction_type,
+            "quantity":self.quantity,
+            "created_at":self.created_at,
+            # "name":[inventory.to_dict() for inventory in self.inventory],
         }
 
 class Product(db.Model, SerializerMixin):

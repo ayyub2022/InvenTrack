@@ -78,7 +78,7 @@ def login():
     login_user(user)
     response = jsonify({'success': True, 'message': 'Login successful'})
     access_token = create_access_token(identity=user.id)
-    set_access_cookies(response, access_token)
+    set_access_cookies(response, access_token,)
     return response
 
 @app.route('/logout', methods=['POST'])
@@ -90,8 +90,10 @@ def logout():
     return response
 
 @app.route('/checksession', methods=['GET'])
+@jwt_required()
 def check_session():
-    user_id = session.get('user_id')
+    user_id = get_jwt_identity()
+    print(user_id)
     if user_id:
         user = User.query.filter_by(id=user_id).first()
         if user:
