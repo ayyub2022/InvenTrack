@@ -18,6 +18,17 @@ class Transaction(db.Model, SerializerMixin):
     user = db.relationship('User', back_populates='transactions')
     inventory = db.relationship('Inventory', back_populates='transactions')
 
+    def to_dict(self):
+        return {
+            "id":self.id,
+            "user_id":self.user_id,
+            "inventory_id":self.inventory_id,
+            "transaction_type":self.transaction_type,
+            "quantity":self.quantity,
+            "created_at":self.created_at,
+            # "name":[inventory.to_dict() for inventory in self.inventory],
+        }
+
 class Product(db.Model, SerializerMixin):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
@@ -82,6 +93,7 @@ class Category(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(200), nullable=True)
+
     
     products = db.relationship('Product', back_populates='category')
 
