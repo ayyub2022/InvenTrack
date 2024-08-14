@@ -63,8 +63,8 @@ def login():
     login_user(user)
     response = jsonify({'success': True, 'message': 'Login successful'})
     access_token = create_access_token(identity=user.id)
-    set_access_cookies(response, access_token,)
-    return response
+    set_access_cookies(response, access_token)
+    return response,200
 
 @app.route('/logout', methods=['POST'])
 @login_required
