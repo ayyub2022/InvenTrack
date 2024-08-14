@@ -17,21 +17,34 @@ def fetch_data(url, limit=None):
 
 def seed_categories(limit=10):
     categories = fetch_data('https://api.escuelajs.co/api/v1/categories', limit)
+    existing_names = set()
+    
     for i, category in enumerate(categories):
+        if category:
+            name = category['name']
+        else: 
+            name = fake.word()
+        
+       
+        if name in existing_names:
+            continue
+        existing_names.add(name)
+
         if category:
             new_category = Category(
                 id=category['id'],
-                name=category['name'],
-                description=f"{category['name']} category"
+                name=name,
+                description=f"{name} category"
             )
-        else:  # Create dummy data
+        else:
             new_category = Category(
-                name=fake.word(),
+                name=name,
                 description=fake.sentence()
             )
+        
         db.session.add(new_category)
     db.session.commit()
-    print(f"Seeded {limit} categories.")
+    print(f"Seeded {len(existing_names)} categories.")
 
 def seed_products(limit=10):
     products = fetch_data('https://api.escuelajs.co/api/v1/products', limit)
@@ -57,25 +70,23 @@ def seed_products(limit=10):
     print(f"Seeded {limit} products.")
 
 def seed_users(limit=10):
-    users = fetch_data('https://api.escuelajs.co/api/v1/users', limit)
-    for i, user in enumerate(users):
-        if user:
-            new_user = User(
-                name=user['name'],
-                email=user['email'],
-                password=user['password'],
-                role=user["role"]
-            )
-        else:  # Create dummy data
-            new_user = User(
-                name=fake.name(),
-                email=fake.email(),
-                password=fake.password(),
-                role=random.choice(['admin', 'customer', 'clerk'])
-            )
-        db.session.add(new_user)
+    existing_emails = set(user.email for user in User.query.all())
+    for _ in range(limit):
+        email = fake.email()
+        if email in existing_emails:
+            continue
+        existing_emails.add(email)
+
+        user = User(
+            name=fake.name(),
+            email=email,
+            password=fake.password(),  # Ensure you hash passwords in production
+            role='user',
+            created_at=fake.date_time_this_year()
+        )
+        db.session.add(user)
     db.session.commit()
-    print(f"Seeded {limit} users.")
+    print(f"Seeded {len(existing_emails)} users.")
 
 def seed_inventory(limit=10):
     for i in range(1, limit+1):
@@ -180,7 +191,21 @@ def seed_purchases(limit=10):
 def seed_database():
     db.drop_all()
     db.create_all()
-    limit = 10  # Ensure each table has at least 10 records
+    limit = 10 
+    
+    Category.query.delete()
+    Product.query.delete()
+    User.query.delete()
+    Inventory.query.delete()
+    Transaction.query.delete()
+    Supplier.query.delete()
+    SupplyRequest.query.delete()
+    Payment.query.delete()
+    SupplierProduct.query.delete()
+    Sale.query.delete()
+    SaleReturn.query.delete()
+    Purchase.query.delete()
+
     seed_categories(limit)
     seed_products(limit)
     seed_users(limit)
@@ -193,6 +218,7 @@ def seed_database():
     seed_sales(limit)
     seed_sale_returns(limit)
     seed_purchases(limit)
+
 
 if __name__ == "__main__":
     with app.app_context():
