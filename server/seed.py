@@ -16,6 +16,7 @@ def fetch_data(url, limit=None):
         data = data[:limit]  # Apply limit if specified
     return data
 
+
 def seed_categories():
     categories = fetch_data('https://fakestoreapi.com/products/categories')
     
@@ -27,7 +28,6 @@ def seed_categories():
                 new_category = Category(
                     name=category,
                     description=f"{category} category",
-                    image_url=None  # or a placeholder URL if needed
                 )
                 db.session.add(new_category)
     
@@ -66,7 +66,6 @@ def seed_products():
             )
             db.session.add(new_product)
             seeded_count += 1
-
     db.session.commit()
     print(f"Seeded {seeded_count} products.")
 
@@ -92,6 +91,7 @@ def seed_users():
     except IntegrityError:
         db.session.rollback()
         print("Error occurred while seeding users.")
+
 
 def seed_inventory(limit=20):
     for i in range(1, limit+1):
@@ -196,6 +196,21 @@ def seed_purchases(limit=20):
 def seed_database():
     db.drop_all()
     db.create_all()
+    limit = 10 
+    
+    Category.query.delete()
+    Product.query.delete()
+    User.query.delete()
+    Inventory.query.delete()
+    Transaction.query.delete()
+    Supplier.query.delete()
+    SupplyRequest.query.delete()
+    Payment.query.delete()
+    SupplierProduct.query.delete()
+    Sale.query.delete()
+    SaleReturn.query.delete()
+    Purchase.query.delete()
+
     seed_categories()
     seed_products()  # Keep limit for products if needed
     seed_users()  # No limit for users
@@ -208,6 +223,8 @@ def seed_database():
     seed_sales(90)  # Keep limit for sales if needed
     seed_sale_returns(90)  # Keep limit for sale returns if needed
     seed_purchases(90)  # Keep limit for purchases if needed
+
+
 
 if __name__ == "__main__":
     with app.app_context():
