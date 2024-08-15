@@ -5,7 +5,6 @@ from config import db
 from flask_login import UserMixin
 from sqlalchemy.orm import backref, relationship
 
-
 class Transaction(db.Model, SerializerMixin):
     __tablename__ = 'transactions'
     id = db.Column(db.Integer, primary_key=True)
@@ -20,13 +19,12 @@ class Transaction(db.Model, SerializerMixin):
 
     def to_dict(self):
         return {
-            "id":self.id,
-            "user_id":self.user_id,
-            "inventory_id":self.inventory_id,
-            "transaction_type":self.transaction_type,
-            "quantity":self.quantity,
-            "created_at":self.created_at,
-            # "name":[inventory.to_dict() for inventory in self.inventory],
+            "id": self.id,
+            "user_id": self.user_id,
+            "inventory_id": self.inventory_id,
+            "transaction_type": self.transaction_type,
+            "quantity": self.quantity,
+            "created_at": self.created_at,
         }
 
 class Product(db.Model, SerializerMixin):
@@ -36,7 +34,7 @@ class Product(db.Model, SerializerMixin):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
     bp = db.Column(db.Float, nullable=False)
     sp = db.Column(db.Float, nullable=False)
-    image_url = db.Column(db.String,nullable=True)
+    image_url = db.Column(db.String, nullable=True)
     
     category = db.relationship('Category', back_populates='products')
     inventory_items = db.relationship('Inventory', back_populates='product', cascade='all, delete-orphan')
@@ -53,7 +51,7 @@ class Product(db.Model, SerializerMixin):
             'category_id': self.category_id,
             'bp': self.bp,
             'sp': self.sp,
-            "image":self.image_url
+            "image": self.image_url
         }
 
 class Inventory(db.Model, SerializerMixin):
@@ -88,23 +86,54 @@ class User(db.Model, UserMixin, SerializerMixin):
             'created_at': self.created_at
         }
 
+class Clerk(User):
+    __tablename__ = 'clerks'
+    
+    id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    user = db.relationship('User', backref=db.backref('clerk', uselist=False))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': 'Clerk',
+            'created_at': self.created_at
+        }
+
+class Admin(db.Model, UserMixin, SerializerMixin):
+    __tablename__ = 'admins'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False, unique=True)
+    password = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': self.role,
+            'created_at': self.created_at
+        }
+
 class Category(db.Model, SerializerMixin):
     __tablename__ = 'categories'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(200), nullable=True)
 
-    
     products = db.relationship('Product', back_populates='category')
 
     def to_dict(self):
         return {
-
             'id': self.id,
             'name': self.name,
             'description': self.description,
         }
-            
+
 class Supplier(db.Model, SerializerMixin):
     __tablename__ = 'suppliers'
     id = db.Column(db.Integer, primary_key=True)
@@ -143,7 +172,7 @@ class Payment(db.Model, SerializerMixin):
         return {
             'id': self.id,
             'inventory_id': self.inventory_id,
-            'amount': str(self.amount),  
+            'amount': str(self.amount),
             'payment_date': self.payment_date.strftime('%Y-%m-%d')
         }
 
@@ -166,7 +195,6 @@ class ProductCategory(db.Model):
     
     product = db.relationship('Product', backref=backref('product_categories', cascade='all, delete-orphan'))
     category = db.relationship('Category', backref=backref('product_categories', cascade='all, delete-orphan'))
-    
 
 class Sale(db.Model):
     __tablename__ = 'sales'

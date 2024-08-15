@@ -1,13 +1,16 @@
-from flask import Flask, request, jsonify, session, make_response
+from flask import Flask, request, jsonify, session, make_response, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from config import app, db, api, login_manager
-from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction,SaleReturn,Sale,Purchase
+from models import Product, Category, User, Payment, SupplierProduct, SupplyRequest, Supplier, Transaction,SaleReturn,Sale,Purchase,Admin,Clerk
 from datetime import datetime,timedelta, timezone
 from flask_jwt_extended import get_jwt_identity,get_jwt,jwt_required,set_access_cookies,create_access_token,unset_jwt_cookies
 from config import app
 from sqlalchemy import func
+
+
+
 
 @app.route('/')
 def index():
@@ -538,6 +541,7 @@ def clerk_login():
 
     login_user(user)
     return jsonify({'message': 'Clerk login successful'}), 200
+
 @app.route('/admin/clerk', methods=['POST'])
 @login_required
 def create_clerk():
@@ -569,6 +573,7 @@ def create_clerk():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 @app.route('/admin/clerks', methods=['GET'])
 @login_required
 def get_clerks():
@@ -577,6 +582,7 @@ def get_clerks():
 
     clerks = User.query.filter_by(role='Clerk').all()
     return jsonify([clerk.to_dict() for clerk in clerks])
+
 @app.route('/admin/clerks/<int:clerk_id>', methods=['PATCH', 'DELETE'])
 @login_required
 def manage_clerk(clerk_id):
@@ -610,6 +616,66 @@ def manage_clerk(clerk_id):
         except SQLAlchemyError as e:
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
+        
+@app.route('/admins/signup', methods=['POST'])
+def signup_admin():
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    new_admin = Admin(
+        name=data['name'],
+        email=data['email'],
+        password=hashed_password
+    )
+    db.session.add(new_admin)
+    db.session.commit()
+    return jsonify(new_admin.to_dict()), 201
+
+@app.route('/admins/login', methods=['POST'])
+def login_admin():
+    data = request.get_json()
+    admin = Admin.query.filter_by(email=data['email']).first()
+    
+    if admin and check_password_hash(admin.password, data['password']):
+       
+        return jsonify(admin.to_dict()), 200
+    
+    return jsonify({'message': 'Invalid credentials'}), 401
+
+
+@app.route('/admins', methods=['POST'])
+def create_admin():
+    data = request.get_json()
+    new_admin = Admin(name=data['name'], email=data['email'], password=generate_password_hash(data['password'], method='sha256'))
+    db.session.add(new_admin)
+    db.session.commit()
+    return jsonify(new_admin.to_dict()), 201
+
+@app.route('/admins', methods=['GET'])
+def get_admins():
+    admins = Admin.query.all()
+    return jsonify([admin.to_dict() for admin in admins])
+
+@app.route('/admins/<int:id>', methods=['GET'])
+def get_admin(id):
+    admin = Admin.query.get_or_404(id)
+    return jsonify(admin.to_dict())
+
+@app.route('/admins/<int:id>', methods=['PUT'])
+def update_admin(id):
+    admin = Admin.query.get_or_404(id)
+    data = request.get_json()
+    admin.name = data['name']
+    admin.email = data['email']
+    admin.role = data['role']
+    db.session.commit()
+    return jsonify(admin.to_dict())
+
+@app.route('/admins/<int:id>', methods=['DELETE'])
+def delete_admin(id):
+    admin = Admin.query.get_or_404(id)
+    db.session.delete(admin)
+    db.session.commit()
+    return jsonify({'message': 'Admin deleted successfully'})
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
